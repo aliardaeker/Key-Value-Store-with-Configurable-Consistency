@@ -3,8 +3,9 @@ import sys
 sys.path.append('/home/vchaska1/protobuf/protobuf-3.5.1/python')
 
 class Server:
+    server_id = sys.argv[1]
     dict_store = {}
-    port = int(sys.argv[1])
+    port = int(sys.argv[2])
     ip = socket.gethostbyname(socket.gethostname())
 
 def listen(socket, handler):
@@ -16,6 +17,12 @@ def listen(socket, handler):
                 
                 if data:
                     pass
+                    
+                    # if -> get
+
+                    # else if -> put
+                        # log first
+                        # then update dict_store
                 else:
                     break
         finally:
@@ -27,4 +34,7 @@ if __name__ == '__main__':
     server_address = (handler.ip, handler.port);
     sock.bind(server_address)
     sock.listen(1)
+
+    # Check tke log, update the dict_store
+
     listen(sock, handler)
