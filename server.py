@@ -10,6 +10,14 @@ class Server:
     s_ips = []
     s_ports = []
     s_ids = []
+    rangeDict = {}
+
+def partitioner(handler):
+    keyRange = 256;
+    replicaNumber = len(handler.s_ids)
+    for i in replicaNumber:
+        handler.rangeDict[i] = [i*(keyRange/replicaNumber),(i+1)*(keyRange/replicaNumber)-1]
+
 
 def listen(socket, handler):
     while True:
