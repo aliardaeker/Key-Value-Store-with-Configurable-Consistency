@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+
+message GetMessage {
+  uint32 key = 1;
+  uint32 consistency = 2;
+}
+
+message PutMessage {
+	unint32 key = 1;
+	string value = 2;
+	unint32 consistency = 3;
+}
+
+message CoordToClient {
+	uint32 key = 1;
+	string value = 2;
+}
+
+message RequestMessage {
+	oneof request_message {
+	GetMessage get_message = 1;
+	PutMessage put_message = 2;
+	CoordToClient coord_message = 3;
+	}
+}
