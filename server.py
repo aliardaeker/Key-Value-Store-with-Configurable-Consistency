@@ -4,9 +4,12 @@ sys.path.append('/home/vchaska1/protobuf/protobuf-3.5.1/python')
 
 class Server:
     server_id = sys.argv[1]
-    dict_store = {}
+    store = {}
     port = int(sys.argv[2])
     ip = socket.gethostbyname(socket.gethostname())
+    s_ips = []
+    s_ports = []
+    s_ids = []
 
 def listen(socket, handler):
     while True:
@@ -34,7 +37,27 @@ if __name__ == '__main__':
     server_address = (handler.ip, handler.port);
     sock.bind(server_address)
     sock.listen(1)
+    log = sys.argv[3]
+
+    # Read .txt for ips and ports of all 4 servers
+    with open(servers, 'r') as s:
+        for line in s:
+            words = line.split()
+            if words[0] != server_id:
+                try:
+                    handler.s_ids.append(words[0])
+                    handler.s_ips.append(words[1])
+                    handler.s_ports.append(int(words[2]))
+                except:
+                    print 'File could not read'
 
     # Check tke log, update the dict_store
-
+    with open(log, 'r') as l:
+        for line in l:
+            words = line.split()
+            try:
+                handler.store[int(words[0])] = words[1] 
+            except:
+                print 'Log could not read'
+    
     listen(sock, handler)
