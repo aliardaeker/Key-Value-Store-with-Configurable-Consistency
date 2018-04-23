@@ -8,10 +8,14 @@ Created on Sat Apr 21 12:04:09 2018
 
 # Import socket module
 import socket
-import sys               
+import datetime
+import sys
+import time
+
+
  
 ip = sys.argv[1]
-port = sys.argv[2]
+port = int(sys.argv[2])
 s = socket.socket()     
 
 s.connect(ip, port)
@@ -25,6 +29,7 @@ while True:
             getReqMessage = store.GetMessage()
             getReqMessage.key = key
             getReqMessage.consistency = 2
+            getReqMessage.timestamp = time.mktime(datetime.datetime.today().timetuple())
             reqMessage = store.RequestMessage()
             reqMessage.get_message.CopyFrom(getReqMessage)
             s.sendall(reqMessage.SerializeToString())
@@ -42,6 +47,7 @@ while True:
             putReqMessage.key = key
             putReqMessage.value = value
             putReqMessage.consistency = 2
+            putReqMessage.timestamp = time.mktime(datetime.datetime.today().timetuple())
             reqMessage = store.RequestMessage()
             reqMessage.put_message.CopyFrom(putReqMessage)
             s.sendall(reqMessage.SerializeToString())
