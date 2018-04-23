@@ -12,47 +12,77 @@ import datetime
 import sys
 import time
 
+def contact_coord(split_command):
 
- 
-ip = sys.argv[1]
-port = int(sys.argv[2])
-s = socket.socket()     
+    key = split_command[1]
 
-s.connect(ip, port)
+    if split_command[0].lower() == "get":
 
-while True:
-    print
-    command = raw_input('>>')
-    if command:
-        if command.strip().split()[0].lower() == 'get':
-            key = command.strip().split()[1]
-            getReqMessage = store.GetMessage()
-            getReqMessage.key = key
-            getReqMessage.consistency = 2
-            getReqMessage.timestamp = time.mktime(datetime.datetime.today().timetuple())
-            reqMessage = store.RequestMessage()
-            reqMessage.get_message.CopyFrom(getReqMessage)
-            s.sendall(reqMessage.SerializeToString())
-            receiveMessage = store.CoordToClient() 
-            received = s.recv(1024)
-            receiveMessage.ParseFromString(received)
-            print received.value
+        getReqMessage = store.GetMessage()
+        getReqMessage.key = key
+        getReqMessage.consistency = 2
+
+        getReqMessage.timestamp = time.mktime(datetime.datetime.today().timetuple())
+        reqMessage = store.RequestMessage()
+        reqMessage.get_message.CopyFrom(getReqMessage)
+        s.sendall(reqMessage.SerializeToString())
+        receiveMessage = store.CoordToClient() 
+        received = s.recv(1024)
+        receiveMessage.ParseFromString(received)
+        print received.value
+    
+    elif command.split()[0].lower() == 'put':
+        value = command.split()[2]
             
+        putReqMessage = store.PutMessage()
+        putReqMessage.key = key
+        putReqMessage.value = value
+        putReqMessage.consistency = 2
+
+        putReqMessage.timestamp = time.mktime(datetime.datetime.today().timetuple())
+        reqMessage = store.RequestMessage()
+        reqMessage.put_message.CopyFrom(putReqMessage)
+        s.sendall(reqMessage.SerializeToString())
+
+            # Will recieve status and stuff
+    
+
+
+def correct_format():
+    print "For Get Requests - get <key>"
+    print "For Put Requests - put <key> <value>"
+
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        print "Enter the correct number of arguments!"
+        exit()
+    
+    ip = sys.argv[1]
+    port = int(sys.argv[2])
+    s = socket.socket()     
+
+    s.connect(ip, port)
+
+    correct_format()
+
+    while True:
+        command = raw_input('>>')
+        if command:
+
+            try:
+                user_command = command.split()
+                if (len(user_command) < 2) or (len(user_command) > 3):
+                    correct_format()
+                contact_coord(user_command)
+            except:
+                print "Unable to read, please follow \n"
+                correct_format()
+
             
-        elif command.strip().split()[0].lower() == 'put':
-            key = command.strip().split()[1]
-            value = command.strip().split()[2]
+    
             
-            putReqMessage = store.PutMessage()
-            putReqMessage.key = key
-            putReqMessage.value = value
-            putReqMessage.consistency = 2
-            putReqMessage.timestamp = time.mktime(datetime.datetime.today().timetuple())
-            reqMessage = store.RequestMessage()
-            reqMessage.put_message.CopyFrom(putReqMessage)
-            s.sendall(reqMessage.SerializeToString())
- 
-           
-            
-# close the connection
-s.close() 
+                
+    # close the connection
+    s.close() 

@@ -1,5 +1,6 @@
 import socket
 import sys
+import os
 # sys.path.append('/home/vchaska1/protobuf/protobuf-3.5.1/python')
 
 class Server:
@@ -15,25 +16,28 @@ class Server:
         self.rangeDict = {}
         self.log_file = "LOGFILE" #Name of logfile
         self.replica_file = replica_file #IP and port of other rep
-        self.server_init() #starts the server
         self.LogFileCheck() #Check log file
+        self.server_init() #starts the server
 
     def server_init(self):
+        ## Either wait for client (means I am coord) else wait for other replicas
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_address = ('', self.port)
         sock.bind(server_address)
-        sock.listen(5)
+        sock.listen(5) ##Need to finish this
+
+        sock.accept()
 
 
     def LogFileCheck(self):
         if os.path.isfile(self.log_file):
-            with open(self.log_file, "w") as logfile:
-                for line in logfile:
-                    key, value, timestamp = line.split()
-                    self.store[key] = value
+                with open(self.log_file, "w") as logfile:
+                    for line in logfile:
+                        key, value, timestamp = line.split()
+                        self.store[key] = value
         else:
-            open(self.log_file, 'a').close() # Create file and ignore if it exists
+                open(self.log_file, 'a').close() # Create file and ignore if it exists
 
     def ReadFile(self):
         with open(self.replica_file, "r") as replicafile: #Assume it exists
@@ -42,7 +46,6 @@ class Server:
                 self.s_ids.append(info[0])
                 self.s_ips.append(info[1])
                 self.s_ports.append(int(info[2]))
-
 
     def partitioner(handler):
         keyRange = 256;
