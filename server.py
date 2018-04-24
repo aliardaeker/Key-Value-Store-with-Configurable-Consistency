@@ -1,71 +1,108 @@
 import socket
 import sys
+import os
+import thread
 sys.path.append('/home/vchaska1/protobuf/protobuf-3.5.1/python')
 
 class Server:
-    server_id = sys.argv[1]
-    store = {}
-    port = int(sys.argv[2])
-    ip = socket.gethostbyname(socket.gethostname())
-    s_ips = []
-    s_ports = []
-    s_ids = []
-    rangeDict = {}
+    def __init__(self, port, replica_file, s_id)
+        self.s_id = s_id
+        self.server_ip = socket.gethostbyname(socket.gethostname())
+        self.store = {}
+        self.port = port
+        self.replicas = {}
 
-def partitioner(handler):
-    keyRange = 256;
-    replicaNumber = len(handler.s_ids)
-    for i in replicaNumber:
-        handler.rangeDict[i] = [i*(keyRange/replicaNumber),(i+1)*(keyRange/replicaNumber)-1]
+        self.log_file = "LOGFILE_" + str(self.s_id) # Name of logfile
+        self.replica_file = replica_file #IP and port of other rep
+        self.LogFileCheck() #Check log file
+        self.server_init() #starts the server
 
-
-def listen(socket, handler):
-    while True:
-        connection, client = sock.accept()
+    def server_init(self):
+        ## Either wait for client (means I am coord) else wait for other replicas
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_address = (self.server_ip, self.port)
+        sock.bind(server_address)
+        sock.listen(5) # Need to finish this
+        
         try:
-            while True:
-                data = connection.recv(1024)
-                
-                if data:
-                    pass
+            t = thread.start_new_thread(thread_listener, (sock, ))
+        except:
+            print 'Threads cannot be initiated'
+
+        while True:
+            pass
+ 
+    def LogFileCheck(self):
+        if os.path.isfile(self.log_file):
+            with open(self.log_file, "w") as logfile:
+                for line in logfile:
+                    key, value, timestamp = line.split()
+                    self.store[key] = (value, timestamp)
+        else:
+            open(self.log_file, 'a').close() # Create file and ignore if it exists
+
+    def ReadFile(self):
+        with open(self.replica_file, "r") as replicafile: #Assume it exists
+            for line in replicafile:
+                info = line.split()
+                self.replicas[info[0], (info[1], info[2])]
                     
-                    # if -> get
+    def put_request_handler(self, msg, sock):
+        key = msg.put_message.key 
+        value = msg.put_message.value
+        t = msg.put_message.timestamp
+        prime_s = key % 4
+        consistency = msg.put_message.consistency
 
-                    # else if -> put
-                        # log first
-                        # then update dict_store
-                else:
-                    break
-        finally:
-            connection.close()
+        if prime_s == self.s_id:
+            with open(self.log_file, "a+") as logfile:
+                logfile.write(key + ' ' + value + ' ' + t)
+            
+            self.store[key] = (value, t)      
+            if consistency == 1:
+                # send success to client   
+                pass
 
-if __name__ == '__main__':
-    handler = Server()
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_address = (handler.ip, handler.port);
-    sock.bind(server_address)
-    sock.listen(1)
-    log = sys.argv[3]
+            replica_list = [(self.s_id+1) % 4, (self.s_id+2) % 4]
+        else
+            replica_list = [(self.s_id+1) % 4, (self.s_id+2) % 4, (self.s_id+3) % 4]
 
-    # Read .txt for ips and ports of all 4 servers
-    with open(servers, 'r') as s:
-        for line in s:
-            words = line.split()
-            if words[0] != server_id:
-                try:
-                    handler.s_ids.append(words[0])
-                    handler.s_ips.append(words[1])
-                    handler.s_ports.append(int(words[2]))
-                except:
-                    print 'File could not read'
+        
+        # Ask to the replicas
+        t = thread.start_new_thread(thread_sender)
+           
+    def thread_sender():
+        for rep in replica_list:
+            
 
-    # Check tke log, update the dict_store
-    with open(log, 'r') as l:
-        for line in l:
-            words = line.split()
+    def thread_listener(sock):
+        while True:
+            connection, client = sock.accept()
             try:
-                handler.store[int(words[0])] = words[1] 
-            except:
-                print 'Log could not read'
-    
-    listen(sock, handler)
+                while True:
+                    data = connection.recv(1024)
+
+                    if data:
+                        msg = store_pb2.RequestMessage()
+                        msg.ParseFromString(data)
+                         
+                        if msg.request_message.HasField('put_message'):
+                            self.put_request_handler(msg, sock)
+                        elif msg.request_message.HasField('put_message_replica'):
+                            pass
+                        elif msg.request_message.HasField('get_message'):
+                            pass
+                        else 
+                            raise Exception('Error in thread listener')
+                    
+                    else:
+                        break
+            finally:
+                connection.close()
+
+        
+if __name__ == '__main__':
+    port = sys.argv[2]
+    log_file = sys.argv[3]
+    handler = Server(port, log_file, sys.argv[1]) 
