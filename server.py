@@ -54,27 +54,82 @@ class Server:
         t = msg.put_message.timestamp
         prime_s = key % 4
         consistency = msg.put_message.consistency
+        consistency_count = 0
 
         if prime_s == self.s_id:
+            consistency_count+=1
             with open(self.log_file, "a+") as logfile:
                 logfile.write(key + ' ' + value + ' ' + t)
             
             self.store[key] = (value, t)      
-            if consistency == 1:
-                # send success to client   
-                pass
 
             replica_list = [(self.s_id+1) % 4, (self.s_id+2) % 4]
         else
             replica_list = [(self.s_id+1) % 4, (self.s_id+2) % 4, (self.s_id+3) % 4]
-
         
         # Ask to the replicas
-        t = thread.start_new_thread(thread_sender)
+        t = thread.start_new_thread(thread_sender, (replica_list, key, value, timestamp, consistency,consistency_count,sock, ))
            
-    def thread_sender():
+    def thread_sender(self, replica_list, key, value, timestamp, consistency, consistency_count, sock):
+        msg_sent = False
+
         for rep in replica_list:
-            
+            if consistency_count == consistency and not msg_sent:
+                msg_sent = True
+                coord_client_msg = store_pb2.CoordToClient()
+                coord_client_msg.status = 1
+                req_msg = store_pb2.RequestMessage()
+                req_msg.coord_message.CopyFrom(coord_client_msg)
+                sock.sendall(req_msg.SerializeToString())
+                pass
+
+            ip, port = self.replicas[rep]
+            send_socket = socket.socket()
+            try:
+                send_socket.connect(ip, port)
+                put_msg = store_pb2.PutMessageReplica()
+                put_msg.key = key
+                put_msg.value = value
+                put_msg.timestamp = timestamp
+                put_msg.consistency = consistency
+
+                req_msg = store_pb2.RequestMessage()
+                req_msg.put_message_replica.CopyFrom(req_msg)
+                send_socket.sendall(req_msg.SerializeToString())
+                recieved_data = send_socket.recv(2048)
+                recieved_msg = store_pb2.ReplicaToCoord()
+                recieved_msg.ParseFromString(recieved_data)
+                if recieved_msg.status == 1:
+                    consistency_count+=1
+            except:
+                pass
+
+        if not msg_sent:
+            # send fail to client
+            coord_client_msg = store_pb2.CoordToClient()
+            coord_client_msg.status = 0
+            req_msg = store_pb2.RequestMessage()
+            req_msg.coord_message.CopyFrom(coord_client_msg)
+            sock.sendall(req_msg.SerializeToString())
+
+    def update_req_from_coord(self, msg, connection):
+        key = msg.put_message_replica.key 
+        value = msg.put_message_replica.value
+        t = msg.put_message_replica.timestamp
+
+        with open(self.log_file, "a+") as logfile:
+             logfile.write(key + ' ' + value + ' ' + t)
+        self.store[key] = (value, t) 
+
+        put_msg = store_pb2.ReplicaToCoord()
+        put_msg.status = 1
+
+
+        req_msg = store_pb2.RequestMessage()
+        req_msg.rep_coord.CopyFrom(put_msg)
+        connection.sendall(req_msg.SerializeToString())
+        # return succ to coor
+
 
     def thread_listener(sock):
         while True:
@@ -88,9 +143,9 @@ class Server:
                         msg.ParseFromString(data)
                          
                         if msg.request_message.HasField('put_message'):
-                            self.put_request_handler(msg, sock)
+                            self.put_request_handler(msg, connection)
                         elif msg.request_message.HasField('put_message_replica'):
-                            pass
+                            self.update_req_from_coord(msg, connection)
                         elif msg.request_message.HasField('get_message'):
                             pass
                         else 
